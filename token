@@ -1,0 +1,143 @@
+ string GenerateToken(string userId);
+        void ValidateToken(string token);
+using Microsoft.IdentityModel.Tokens;
+using Shop.Application.Contract.IServices;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+namespace Shop.Application.Services
+{
+    public class TokenService : ITokenService
+    {
+        private const string Key = "dgیش)asjhdgjassdghjkqwgheuiqgheu1یتاشu@y32173y982132hskj";
+        private readonly JwtSecurityTokenHandler tokenHandler;
+        private readonly SymmetricSecurityKey symmetricKey;
+        public TokenService()
+        {
+             tokenHandler = new JwtSecurityTokenHandler();
+             symmetricKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Key));
+        }
+
+        public string GenerateToken(string userId)
+        {
+            var claims = new List<Claim>()
+            {
+                new Claim("userId", userId),
+            };
+
+            var descriptor = GenerateSecurityTokenDescriptor(claims);
+
+            var jwtSecurityToken = tokenHandler.CreateJwtSecurityToken(descriptor);
+
+            return tokenHandler.WriteToken(jwtSecurityToken);
+        }
+
+        public void ValidateToken(string token)
+        {
+            var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateAudience = false,
+                ValidateIssuer = false,
+                RequireExpirationTime = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = symmetricKey
+
+            }, out SecurityToken securityToken);
+        }
+
+        private SecurityTokenDescriptor GenerateSecurityTokenDescriptor(List<Claim> claims)
+        {
+            var descriptor = new SecurityTokenDescriptor()
+            {
+                Subject = new ClaimsIdentity(claims),
+                Issuer = "http://www.taheri.com",
+                Audience = "http://www.Backend.taheri.com",
+                SigningCredentials = new SigningCredentials(symmetricKey, SecurityAlgorithms.HmacSha256Signature)
+            };
+            return descriptor;
+        }
+    }
+}
+------------------------------------------
+using System.Security.Claims;
+
+namespace Shop.Application.Contract.IServices.Users
+{
+    public interface ITokenHandler
+    {
+        string GenerateToken(string userId, params string[] roles);
+
+        List<Claim> ValidateToken(string token);
+    }
+}
+
+
+using Microsoft.AspNetCore.Identity;
+using Shop.Application.Contract.Dtos.Users;
+using Shop.Application.Contract.IServices.Users;
+using Shop.InfraStructure.Contexts;
+using Shop.Model.Models.IdentityModels;
+
+namespace Shop.Application.Services.Users
+{
+    public class UserService : IUserService
+    {
+        private readonly ITokenHandler tokenHandler;
+        private readonly UserManager<ApplicationUser> userManager;
+        private readonly IPasswordHasher<ApplicationUser> passwordHasher;
+        public UserService(ITokenHandler tokenHandler, UserManager<ApplicationUser> userManager, IPasswordHasher<ApplicationUser> passwordHasher)
+        {
+            this.tokenHandler = tokenHandler;
+            this.userManager = userManager;
+            this.passwordHasher = passwordHasher;
+        }
+
+        public string Login(LoginDto dto)
+        {
+            var user = userManager.FindByNameAsync(dto.UserName).GetAwaiter().GetResult();
+
+            if (userManager.CheckPasswordAsync(user, dto.Password).GetAwaiter().GetResult())
+            {
+                var roles = userManager.GetRolesAsync(user).
+                    GetAwaiter().GetResult().ToArray();
+                return tokenHandler.GenerateToken(user.Id, roles);
+            }
+
+            return "";
+        }
+
+        //public bool Register(RegisterDto dto)
+        //{
+        //    var user = new IdentityUser(dto.UserName);
+        //    user.PasswordHash = passwordHasher.HashPassword(user, dto.Password);
+        //    userManager.CreateAsync(user).GetAwaiter().GetResult();
+        //    var result = userManager.AddToRoleAsync(user, RoleSeedData.Name).GetAwaiter().GetResult();
+        //    return result.Succeeded;
+        //}
+
+        public bool Register(RegisterDto dto)
+        {
+            var user = new ApplicationUser(dto.UserName);
+            //user.UserName = dto.UserName;
+            user.PasswordHash = passwordHasher.HashPassword(user, dto.Password);
+            var userRole = new ApplicationUserRole()
+            {
+                //Role = new ApplicationRole(RoleSeedData.Name)
+                //{
+                //    ConcurrencyStamp = RoleSeedData.ConcurrencyStamp,
+                //    Id = RoleSeedData.RoleId,
+                //    NormalizedName = RoleSeedData.NormalizedName
+                //},
+                RoleId= RoleSeedData.RoleId,
+                //User = user,
+                UserId=user.Id
+            };
+
+            user.ApplicationUserRoles.Add(userRole);
+            var SavedUser = userManager.CreateAsync(user).GetAwaiter().GetResult();
+
+            return SavedUser != null;
+        }
+    }
+}
