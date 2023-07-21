@@ -1,0 +1,149 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Loan.Model.Models
+{
+    public class PersonalInformation
+    {
+        public PersonalInformation()
+        {
+            LoanGuarantors = new HashSet<LoanGuarantors>();
+            LoanPersonalRequests = new HashSet<LoanPersonalRequest>();
+            Loans = new HashSet<Loans>();
+            PersonalValidation = new HashSet<PersonalValidation>();
+            PersonalAccountTypes = new HashSet<PersonalAccountType>();
+
+
+        }
+        public int Id { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string NationalNo { get; set; }
+        public string Mobile { get; set; }
+        public string Phone { get; set; }
+        public string Addrress { get; set; }
+        public string BirthFile { get; set; } = null!;
+        public string AccountNumber { get; set; }
+
+        public decimal DepositAmount { get; set; }
+
+        public DateTime AccountOpeningDate { get; set; }
+
+
+        public ICollection<LoanGuarantors> LoanGuarantors { get; set; }
+        public ICollection<LoanPersonalRequest> LoanPersonalRequests { get; set; }
+        public ICollection<Loans> Loans { get; set; }
+        public ICollection<PersonalValidation> PersonalValidation { get; set; }
+        public ICollection<PersonalAccountType> PersonalAccountTypes { get; set; }
+
+    }
+}
+-------------------
+
+
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Loan.Model.Models
+{
+    public class LoanPersonalRequest
+    {
+        public int Id{ get; set; }
+
+        public PersonalInformation PersonalInformation { get; set; }
+
+        public Loans Loans { get; set; }
+
+        public LoanGuarantors LoanGuarantors { get; set; }
+        public int PersonalDocumentsId { get; set; }
+        public decimal LoanAmountReceived { get; set; }
+        public decimal InstallmentsAmount { get; set; }
+        public string DateOfRegistration { get; set; }
+        public string InstallmentPaymentDate { get; set; }
+    }
+}
+------------------------------------
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Loan.Model.Models
+{
+    public class BaseEntity<TKey> where TKey : struct
+    {
+        public TKey  Id { get; set; }
+    }
+}
+----------------------------------
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Loan.Model.Models
+{
+    public class AccountType : BaseEntity<int>
+    {
+        public AccountType()
+        {
+            PersonalAccountTypes = new HashSet<PersonalAccountType>();
+        }
+       
+        public string AccountTypeName { get; set; } = null!;
+        public ICollection <PersonalAccountType> PersonalAccountTypes { get; set; }
+
+
+
+    }
+}
+--------------------------------
+using Microsoft.EntityFrameworkCore;
+using Loan.Model.Models;
+using Loan.Infrastructure.Mappings;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+
+namespace Loan.Infrastructure.Contexts
+{
+    public class LoanContext : IdentityDbContext
+    {
+        public LoanContext(DbContextOptions<LoanContext> options) : base(options)
+        {
+
+        }
+
+        public DbSet<PersonalInformation> PersonalInformation { get; set; }
+        public DbSet<LoanGuarantors> LoanGuarantors { get; set; }
+        public DbSet<Loans> Loans { get; set; }
+
+        public DbSet<PersonalValidation> PersonalValidation { get; set; }
+        public DbSet<LoanPersonalRequest> LoanPersonalRequest { get; set; }
+        public DbSet<AccountType> AccountType { get; set; }
+
+        public DbSet<PersonalAccountType> PersonalAccountType { get; set; }
+
+        public DbSet<PersonalInformationHistory> PersonalInformationHistory { get; set; }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.ApplyConfiguration(new PersonalInformationEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new LoanEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new LoanGuarantorsEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new LoanPersonalRequestEntityTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new PersonalValidationEntityTypeConfiguration());
+              modelBuilder.ApplyConfiguration(new AccountTypeEntityTypeConfiguration());
+            //modelBuilder.Entity<AccountType>().HasData(
+            //    new AccountType { Id=1,  AccountTypeName = "سپرده قرض الحسنه" },
+            //    new AccountType { Id = 2, AccountTypeName = "قرض الحسنه جاری" },
+            //    new AccountType { Id = 3, AccountTypeName = "سپرده کوتاه مدت" },
+            //    new AccountType { Id = 4, AccountTypeName = "سپرده بلند مدت" }
+            //    );
+            base.OnModelCreating(modelBuilder);
+        }
+
+    }
+}
